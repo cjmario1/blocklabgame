@@ -4969,6 +4969,24 @@ const mk=(k,c)=>new THREE.Mesh(MOD[k].g,c==null?MOD[k].m:pm(c));
 const cv=$('c'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.xr.enabled=true;try{R.xr.setReferenceSpaceType('local-floor')}catch(e){}
 const S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,1,.1,200);
 const dolly=new THREE.Group();S.add(dolly);dolly.add(cam);
+// ---- VR controllers / hands + wrist UI ----
+function ctrlMesh(){const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(.018,.024,.1,8),new THREE.MeshLambertMaterial({color:0x2a2d3a}));b.rotation.x=Math.PI/2;g.add(b);
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(.02,8,8),new THREE.MeshLambertMaterial({color:0xf5a000}));tip.position.set(0,0,-.07);g.add(tip);return g}
+const c0=R.xr.getController(0),c1=R.xr.getController(1),g0=R.xr.getControllerGrip(0),g1=R.xr.getControllerGrip(1);
+g0.add(ctrlMesh());g1.add(ctrlMesh());dolly.add(c0,c1,g0,g1);
+const uiCv=document.createElement('canvas');uiCv.width=280;uiCv.height=180;const uiCx=uiCv.getContext('2d');
+const uiTex=new THREE.CanvasTexture(uiCv);
+const uiPanel=new THREE.Mesh(new THREE.PlaneGeometry(.17,.11),new THREE.MeshBasicMaterial({map:uiTex,transparent:true,side:THREE.DoubleSide}));
+uiPanel.position.set(.02,.06,-.01);uiPanel.rotation.set(-1.15,0,.1);
+let uiTxt='';
+function drawUI(l1,l2){const s=l1+'|'+l2;if(s===uiTxt)return;uiTxt=s;uiCx.clearRect(0,0,280,180);uiCx.fillStyle='rgba(20,21,28,.88)';uiCx.beginPath();uiCx.roundRect(0,0,280,180,18);uiCx.fill();
+  uiCx.fillStyle='#f5a000';uiCx.font='700 22px sans-serif';uiCx.fillText('BlockLab',16,34);
+  uiCx.fillStyle='#fff';uiCx.font='500 17px sans-serif';wrapText(l1,16,64,248,22);
+  uiCx.fillStyle='#9a9fb2';uiCx.font='500 15px sans-serif';uiCx.fillText(l2,16,156);uiTex.needsUpdate=true}
+function wrapText(s,x,y,w,lh){const words=s.split(' ');let line='',yy=y;for(const wd of words){const t2=line+wd+' ';if(uiCx.measureText(t2).width>w&&line){uiCx.fillText(line,x,yy);line=wd+' ';yy+=lh}else line=t2}uiCx.fillText(line,x,yy)}
+c0.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
+c1.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
 S.add(new THREE.HemisphereLight(0xffffff,0x556677,.8));
 const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(8,20,6);S.add(sun);
 const BG=()=>getComputedStyle(document.documentElement).getPropertyValue('--sky').trim();
@@ -5130,7 +5148,8 @@ function loop(t){const dt=Math.min(.05,(t-last)/1e3);last=t;
       const l=srcs.find(i=>i.handedness=='left');if(l&&l.gamepad){const ax=l.gamepad.axes;f=-(ax[3]||ax[1]||0);s=ax[2]||ax[0]||0}
       const wq=new THREE.Quaternion();cam.getWorldQuaternion(wq);yaw=new THREE.Euler().setFromQuaternion(wq,'YXZ').y;
       const r=srcs.find(i=>i.handedness=='right');if(r&&r.gamepad){const p=r.gamepad.buttons[4]&&r.gamepad.buttons[4].pressed;if(p&&!vrBtnPrev)vrToggleSkate();vrBtnPrev=p}
-      $('ph').textContent='Left stick: move · Face button: skateboard'}
+      $('ph').textContent='Left stick: move · Face button: skateboard';
+      drawUI(pl.mode=='walk'?'Left stick: move · Face button: board':'W/S speed · A/D steer · Face button: get off',mapName+(mp?' · '+(Object.keys(rem).length+1)+' online':''))}
     else{if(pl.mode=='walk'){if(keys.KeyQ)yaw+=dt*2;if(keys.KeyE)yaw-=dt*2}
       f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
       let near=null,nd=2.8;if(pl.mode=='walk')props.forEach(p=>{const d=Math.hypot(p.wx-pl.x,p.wz-pl.z);if(d<nd&&Math.abs(p.wy-pl.y)<1.6){nd=d;near=p}});
