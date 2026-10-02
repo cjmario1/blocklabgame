@@ -4978,28 +4978,32 @@ const uiCv=document.createElement('canvas');uiCv.width=300;uiCv.height=190;const
 const uiTex=new THREE.CanvasTexture(uiCv);
 const uiPanel=new THREE.Mesh(new THREE.PlaneGeometry(.18,.114),new THREE.MeshBasicMaterial({map:uiTex,transparent:true,side:THREE.DoubleSide}));
 uiPanel.position.set(.02,.06,-.01);uiPanel.rotation.set(-1.15,0,.1);
-const BTN={exit:[16,134,130,172],use:[154,134,284,172]};
-let uiTxt='';
+const BTN={exit:[8,96,146,184],use:[154,96,292,184]};
+let uiTxt='',uiHover=null;
 function rr(x,y,w,h,r){uiCx.beginPath();uiCx.roundRect(x,y,w,h,r)}
-function drawUI(l1,l2){const s=l1+'|'+l2;if(s===uiTxt)return;uiTxt=s;uiCx.clearRect(0,0,300,190);
+function drawUI(l1,l2){const s=l1+'|'+l2+'|'+uiHover;if(s===uiTxt)return;uiTxt=s;uiCx.clearRect(0,0,300,190);
   uiCx.fillStyle='#1e2029';rr(0,0,300,190,18);uiCx.fill();uiCx.strokeStyle='#343747';uiCx.lineWidth=2;rr(1,1,298,188,18);uiCx.stroke();
   uiCx.fillStyle='#f5a000';uiCx.font='700 22px "Space Grotesk",sans-serif';uiCx.fillText('BlockLab',16,30);
   uiCx.fillStyle='#9a9fb2';uiCx.font='500 14px sans-serif';uiCx.textAlign='right';uiCx.fillText(l2,286,30);uiCx.textAlign='left';
-  uiCx.fillStyle='#eceef4';uiCx.font='500 16px sans-serif';wrapText(l1,16,58,268,20);
+  uiCx.fillStyle='#eceef4';uiCx.font='500 16px sans-serif';wrapText(l1,16,56,268,20);
   const b1=BTN.exit,b2=BTN.use;
-  uiCx.fillStyle='#e5322d';rr(b1[0],b1[1],b1[2]-b1[0],b1[3]-b1[1],10);uiCx.fill();
-  uiCx.fillStyle='#2f6bff';rr(b2[0],b2[1],b2[2]-b2[0],b2[3]-b2[1],10);uiCx.fill();
-  uiCx.fillStyle='#fff';uiCx.font='700 15px sans-serif';uiCx.textAlign='center';
-  uiCx.fillText('Exit',(b1[0]+b1[2])/2,(b1[1]+b1[3])/2+5);uiCx.fillText(pl&&pl.mode!='walk'?'Get off':'Use',(b2[0]+b2[2])/2,(b2[1]+b2[3])/2+5);uiCx.textAlign='left';uiTex.needsUpdate=true}
+  uiCx.fillStyle=uiHover=='exit'?'#ff6a65':'#e5322d';rr(b1[0],b1[1],b1[2]-b1[0],b1[3]-b1[1],12);uiCx.fill();
+  uiCx.fillStyle=uiHover=='use'?'#6a93ff':'#2f6bff';rr(b2[0],b2[1],b2[2]-b2[0],b2[3]-b2[1],12);uiCx.fill();
+  if(uiHover){const h=BTN[uiHover];uiCx.strokeStyle='#fff';uiCx.lineWidth=3;rr(h[0],h[1],h[2]-h[0],h[3]-h[1],12);uiCx.stroke()}
+  uiCx.fillStyle='#fff';uiCx.font='700 17px sans-serif';uiCx.textAlign='center';
+  uiCx.fillText('Exit',(b1[0]+b1[2])/2,(b1[1]+b1[3])/2+6);uiCx.fillText(pl&&pl.mode!='walk'?'Get off':'Use',(b2[0]+b2[2])/2,(b2[1]+b2[3])/2+6);uiCx.textAlign='left';uiTex.needsUpdate=true}
 function wrapText(s,x,y,w,lh){const words=s.split(' ');let line='',yy=y;for(const wd of words){const t2=line+wd+' ';if(uiCx.measureText(t2).width>w&&line){uiCx.fillText(line,x,yy);line=wd+' ';yy+=lh}else line=t2}uiCx.fillText(line,x,yy)}
-const uiRay=new THREE.Raycaster();
-function uiClick(ctrl){uiRay.set(new THREE.Vector3().setFromMatrixPosition(ctrl.matrixWorld),new THREE.Vector3(0,0,-1).applyQuaternion(ctrl.getWorldQuaternion(new THREE.Quaternion())));
-  const h=uiRay.intersectObject(uiPanel)[0];if(!h||!h.uv)return;const u=h.uv.x*300,v=(1-h.uv.y)*190;
+const uiRay=new THREE.Raycaster(),uiQ=new THREE.Quaternion(),uiV=new THREE.Vector3();
+function uiHit(ctrl){uiRay.set(uiV.clone().setFromMatrixPosition(ctrl.matrixWorld),new THREE.Vector3(0,0,-1).applyQuaternion(ctrl.getWorldQuaternion(uiQ)));
+  const h=uiRay.intersectObject(uiPanel)[0];if(!h||!h.uv)return null;const u=h.uv.x*300,v=(1-h.uv.y)*190;
   const inb=b=>u>=b[0]&&u<=b[2]&&v>=b[1]&&v<=b[3];
-  if(inb(BTN.exit)){if(vrSession)vrSession.end()}else if(inb(BTN.use)){vrToggleSkate()}}
-c0.addEventListener('select',()=>uiClick(c0));c1.addEventListener('select',()=>uiClick(c1));
-c0.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
-c1.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
+  return inb(BTN.exit)?'exit':inb(BTN.use)?'use':null}
+function uiActivate(zone){if(zone=='exit'){if(vrSession)vrSession.end()}else if(zone=='use')vrToggleSkate()}
+function laser(){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-1)]);
+  const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.55}));l.scale.z=3;l.renderOrder=8;return l}
+c0.add(laser());c1.add(laser());
+c0.addEventListener('connected',e=>{c0.userData.input=e.data;if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
+c1.addEventListener('connected',e=>{c1.userData.input=e.data;if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
 S.add(new THREE.HemisphereLight(0xffffff,0x556677,.8));
 const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(8,20,6);S.add(sun);
 const BG=()=>getComputedStyle(document.documentElement).getPropertyValue('--sky').trim();
@@ -5162,6 +5166,9 @@ function loop(t){const dt=Math.min(.05,(t-last)/1e3);last=t;
       const wq=new THREE.Quaternion();cam.getWorldQuaternion(wq);yaw=new THREE.Euler().setFromQuaternion(wq,'YXZ').y;
       const r=srcs.find(i=>i.handedness=='right');if(r&&r.gamepad){const p=r.gamepad.buttons[4]&&r.gamepad.buttons[4].pressed;if(p&&!vrBtnPrev)vrToggleSkate();vrBtnPrev=p}
       $('ph').textContent='Left stick: move · Face button: skateboard';
+      uiHover=null;[c0,c1].forEach(ctrl=>{const z=uiHit(ctrl);if(z)uiHover=z;
+        const inp=ctrl.userData.input,trig=inp&&inp.gamepad&&inp.gamepad.buttons[0]&&inp.gamepad.buttons[0].pressed;
+        if(z&&trig&&!ctrl.userData.trigPrev)uiActivate(z);if(inp&&inp.gamepad&&inp.gamepad.buttons[0])ctrl.userData.trigPrev=trig});
       drawUI(pl.mode=='walk'?'Left stick: move · Face button: board':'W/S speed · A/D steer · Face button: get off',mapName+(mp?' · '+(Object.keys(rem).length+1)+' online':''))}
     else{if(pl.mode=='walk'){if(keys.KeyQ)yaw+=dt*2;if(keys.KeyE)yaw-=dt*2}
       f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
