@@ -4970,21 +4970,34 @@ const cv=$('c'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.xr.enabl
 const S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,1,.1,200);
 const dolly=new THREE.Group();S.add(dolly);dolly.add(cam);
 // ---- VR controllers / hands + wrist UI ----
-function ctrlMesh(){const g=new THREE.Group();
-  const b=new THREE.Mesh(new THREE.CylinderGeometry(.018,.024,.1,8),new THREE.MeshLambertMaterial({color:0x2a2d3a}));b.rotation.x=Math.PI/2;g.add(b);
-  const tip=new THREE.Mesh(new THREE.SphereGeometry(.02,8,8),new THREE.MeshLambertMaterial({color:0xf5a000}));tip.position.set(0,0,-.07);g.add(tip);return g}
+function ctrlMesh(){return new THREE.Mesh(new THREE.SphereGeometry(.035,14,12),new THREE.MeshLambertMaterial({color:0xf5a000}))}
 const c0=R.xr.getController(0),c1=R.xr.getController(1),g0=R.xr.getControllerGrip(0),g1=R.xr.getControllerGrip(1);
 g0.add(ctrlMesh());g1.add(ctrlMesh());dolly.add(c0,c1,g0,g1);
-const uiCv=document.createElement('canvas');uiCv.width=280;uiCv.height=180;const uiCx=uiCv.getContext('2d');
+// Wrist panel mirrors the on-screen bottom bar: map/online status, the hint text, and Exit/Use buttons.
+const uiCv=document.createElement('canvas');uiCv.width=300;uiCv.height=190;const uiCx=uiCv.getContext('2d');
 const uiTex=new THREE.CanvasTexture(uiCv);
-const uiPanel=new THREE.Mesh(new THREE.PlaneGeometry(.17,.11),new THREE.MeshBasicMaterial({map:uiTex,transparent:true,side:THREE.DoubleSide}));
+const uiPanel=new THREE.Mesh(new THREE.PlaneGeometry(.18,.114),new THREE.MeshBasicMaterial({map:uiTex,transparent:true,side:THREE.DoubleSide}));
 uiPanel.position.set(.02,.06,-.01);uiPanel.rotation.set(-1.15,0,.1);
+const BTN={exit:[16,134,130,172],use:[154,134,284,172]};
 let uiTxt='';
-function drawUI(l1,l2){const s=l1+'|'+l2;if(s===uiTxt)return;uiTxt=s;uiCx.clearRect(0,0,280,180);uiCx.fillStyle='rgba(20,21,28,.88)';uiCx.beginPath();uiCx.roundRect(0,0,280,180,18);uiCx.fill();
-  uiCx.fillStyle='#f5a000';uiCx.font='700 22px sans-serif';uiCx.fillText('BlockLab',16,34);
-  uiCx.fillStyle='#fff';uiCx.font='500 17px sans-serif';wrapText(l1,16,64,248,22);
-  uiCx.fillStyle='#9a9fb2';uiCx.font='500 15px sans-serif';uiCx.fillText(l2,16,156);uiTex.needsUpdate=true}
+function rr(x,y,w,h,r){uiCx.beginPath();uiCx.roundRect(x,y,w,h,r)}
+function drawUI(l1,l2){const s=l1+'|'+l2;if(s===uiTxt)return;uiTxt=s;uiCx.clearRect(0,0,300,190);
+  uiCx.fillStyle='#1e2029';rr(0,0,300,190,18);uiCx.fill();uiCx.strokeStyle='#343747';uiCx.lineWidth=2;rr(1,1,298,188,18);uiCx.stroke();
+  uiCx.fillStyle='#f5a000';uiCx.font='700 22px "Space Grotesk",sans-serif';uiCx.fillText('BlockLab',16,30);
+  uiCx.fillStyle='#9a9fb2';uiCx.font='500 14px sans-serif';uiCx.textAlign='right';uiCx.fillText(l2,286,30);uiCx.textAlign='left';
+  uiCx.fillStyle='#eceef4';uiCx.font='500 16px sans-serif';wrapText(l1,16,58,268,20);
+  const b1=BTN.exit,b2=BTN.use;
+  uiCx.fillStyle='#e5322d';rr(b1[0],b1[1],b1[2]-b1[0],b1[3]-b1[1],10);uiCx.fill();
+  uiCx.fillStyle='#2f6bff';rr(b2[0],b2[1],b2[2]-b2[0],b2[3]-b2[1],10);uiCx.fill();
+  uiCx.fillStyle='#fff';uiCx.font='700 15px sans-serif';uiCx.textAlign='center';
+  uiCx.fillText('Exit',(b1[0]+b1[2])/2,(b1[1]+b1[3])/2+5);uiCx.fillText(pl&&pl.mode!='walk'?'Get off':'Use',(b2[0]+b2[2])/2,(b2[1]+b2[3])/2+5);uiCx.textAlign='left';uiTex.needsUpdate=true}
 function wrapText(s,x,y,w,lh){const words=s.split(' ');let line='',yy=y;for(const wd of words){const t2=line+wd+' ';if(uiCx.measureText(t2).width>w&&line){uiCx.fillText(line,x,yy);line=wd+' ';yy+=lh}else line=t2}uiCx.fillText(line,x,yy)}
+const uiRay=new THREE.Raycaster();
+function uiClick(ctrl){uiRay.set(new THREE.Vector3().setFromMatrixPosition(ctrl.matrixWorld),new THREE.Vector3(0,0,-1).applyQuaternion(ctrl.getWorldQuaternion(new THREE.Quaternion())));
+  const h=uiRay.intersectObject(uiPanel)[0];if(!h||!h.uv)return;const u=h.uv.x*300,v=(1-h.uv.y)*190;
+  const inb=b=>u>=b[0]&&u<=b[2]&&v>=b[1]&&v<=b[3];
+  if(inb(BTN.exit)){if(vrSession)vrSession.end()}else if(inb(BTN.use)){vrToggleSkate()}}
+c0.addEventListener('select',()=>uiClick(c0));c1.addEventListener('select',()=>uiClick(c1));
 c0.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
 c1.addEventListener('connected',e=>{if(e.data.handedness=='left')g0.add(uiPanel);else g1.add(uiPanel)});
 S.add(new THREE.HemisphereLight(0xffffff,0x556677,.8));
